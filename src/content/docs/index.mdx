@@ -1,36 +1,28 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
+title: Hi!👋 I'm VIOLET
+description: A Web Developer. Code for Fun.
 template: splash
 hero:
-  tagline: Congrats on setting up a new Starlight project!
-  image:
-    file: ../../assets/houston.webp
-  actions:
-    - text: Example Guide
-      link: /guides/example/
-      icon: right-arrow
-      variant: primary
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
-      icon: external
+    tagline: A Web Developer. Code for Fun.
+    image:
+        file: ../../assets/thumbnail.webp
+    actions:
+        - text: Read the Blog
+          link: /article
+          icon: right-arrow
+          variant: primary
+        - text: Explore this projects on GitHub
+          link: https://starlight.astro.build
+          icon: external
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import ArticleList from '../../components/ArticleList.astro';
+import ShortList from '../../components/ShortList.astro';
 
-## Next steps
+<span class="text-4xl font-extrabold">Articles</span>
+<ArticleList />
 
-<CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
-	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
-	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
-	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight Docs](https://starlight.astro.build/).
-	</Card>
-</CardGrid>
+<div class="h-[20p]"></div>
+
+<span class="text-4xl font-extrabold">Short</span>
+<ShortList />

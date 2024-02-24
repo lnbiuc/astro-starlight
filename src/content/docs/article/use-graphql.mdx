@@ -1,0 +1,367 @@
+---
+title: How to build a GraphQL API application
+description: An example，Show how to build an API using Spring Boot and Graph QL.
+---
+
+> GraphQL API 和 Restful API 类似，是一种查询数据的语言，相比于 Restful API，GraphQL API 在查询方面更加灵活，前后端代码编写也更加方便。本文将介绍如何构建 GraphQL API 应用程序，基于 SpringBoot3.0。如何测试 GraphQL API 接口是否可用，以及前端如何调用 GraphQL API 接口（以 Nuxt 项目为例）。
+
+## What is GraphQL
+
+以下内容摘自[GraphQL Wiki](https://zh.wikipedia.org/zh-cn/GraphQL)。
+
+GraphQL 是一个开源的，面向 API 而创造出来的数据查询操作语言以及相应的运行环境。于 2012 年仍处于 Facebook 内部开发阶段，直到 2015 年才公开发布。 2018 年 11 月 7 日，Facebook 将 GraphQL 项目转移到新成立的 GraphQL 基金会（隶属于非营利性的 Linux 基金会）。
+
+GraphQL 相较于 REST 以及其他 web service 架构提供了一种更加高效、强大和灵活的开发 web APIs 的方式。它通过由客户端根据所需定义数据结构，同时由服务端负责返回相同数据结构的对应数据的方式避免了服务端大量冗余数据的返回，但与此同时也意味着这种方式不能有效利用起查询结果的 web 缓存。GraphQL 这种查询语言所带来的灵活性和丰富性的同时也增加了复杂性，导致简单的 APIs 有可能并不适合这种方式。
+
+## Why use GraphQL
+
+-   由前端决定返回哪些数据。这对于后端需要复杂格式的 JSON 特别有用，前端可以自行决定需要哪些数据，不需要哪些数据，减少冗余数据同时也减少后端压力。
+-   不仅可以查询，还可以用于更新。虽然名称为 Graph Query Language，但是 GraphQL 同样可以用于创建、更新、删除操作。
+
+## How to use
+
+通过调用 GraphQL 接口，向后端发送这样的数据，注意这并不是 JSON
+
+这里传入参数为 article id，用于查询一篇文章
+
+```
+query Article {
+  article(id: "2") {
+    id
+    title
+    content
+    author {
+      id
+      firstName
+      lastName
+    }
+    tags {
+      id
+      name
+      description
+    }
+  }
+}
+```
+
+后端将根据请求中的数据结构返回对于应数据
+
+```json
+{
+	"data": {
+		"article": {
+			"id": "2",
+			"title": "title2",
+			"content": "content2",
+			"author": {
+				"id": "author-2",
+				"firstName": "Douglas",
+				"lastName": "Adams"
+			},
+			"tags": [
+				{
+					"id": "2",
+					"name": "Python",
+					"description": "Python related articles"
+				},
+				{
+					"id": "3",
+					"name": "JavaScript",
+					"description": "JavaScript related articles"
+				}
+			]
+		}
+	}
+}
+```
+
+也可以一次查询多条数据
+
+```
+query Article {
+  articles {
+    id
+    title
+    content
+    author {
+      id
+      firstName
+      lastName
+    }
+    tags {
+      id
+      name
+      description
+    }
+  }
+}
+```
+
+Reponse
+
+```json
+{
+	"data": {
+		"articles": [
+			{
+				"id": "1",
+				"title": "title1",
+				"content": "content1",
+				"author": {
+					"id": "author-1",
+					"firstName": "Joshua",
+					"lastName": "Bloch"
+				},
+				"tags": [
+					{
+						"id": "1",
+						"name": "Java",
+						"description": "Java related articles"
+					},
+					{
+						"id": "2",
+						"name": "Python",
+						"description": "Python related articles"
+					},
+					{
+						"id": "1",
+						"name": "Java",
+						"description": "Java related articles"
+					}
+				]
+			},
+			{
+				"id": "2",
+				"title": "title2",
+				"content": "content2",
+				"author": {
+					"id": "author-2",
+					"firstName": "Douglas",
+					"lastName": "Adams"
+				},
+				"tags": [
+					{
+						"id": "2",
+						"name": "Python",
+						"description": "Python related articles"
+					},
+					{
+						"id": "3",
+						"name": "JavaScript",
+						"description": "JavaScript related articles"
+					}
+				]
+			}
+		]
+	}
+}
+```
+
+## Build SpringBoot Application
+
+推荐 IDEA 先安装 GraphQL 的相关插件，[GraphQL](https://plugins.jetbrains.com/plugin/8097-graphql)，该插件提供了对`schema.graphqls`文件的语法高亮支持。
+
+### 创建项目
+
+pom.xml 中需要加入以下依赖项
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-graphql</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+```
+
+### 定义实体类
+
+实体类既可以和数据库字段对应，可以是自定义的 VO。这里使用了 record，也可以选择使用传统 class
+
+```java
+public record Article(String id, String title, String content, String authorId, String tagId) {}
+
+public record Author (String id, String firstName, String lastName) {}
+
+public record Tag(String id, String name, String description) {}
+```
+
+### 查询数据
+
+### 定义`schema.graphqls`
+
+`schema.graphqls`文件将用于定义 GraphQL 模式、描述数据结构和数据之间的关系、以及客户端可以进行的操作。
+文件将定义以下内容
+
+-   类型
+-   查询
+-   关系
+
+以下是一个具体的`schema.graphqls`文件
+
+```
+# 查询的接口，客户端可以访问的内容
+type Query {
+    # id表示查询的参数，Article为下面type中定义的返回的数据结构
+    article(id: String): Article
+    # 使用[Article]表示返回的是多条数据，以数组形式返回
+    articles: [Article]
+    tag(id: String): Tag
+    tags: [Tag]
+    author(id: String): Author
+}
+
+# 定义数据结构
+type Author {
+    id: String
+    firstName: String
+    lastName: String
+}
+
+# tags是多条，用[Tag]表示
+type Article {
+    id: String
+    title: String
+    content: String
+    author: Author
+    tags: [Tag]
+}
+
+type Tag {
+    id: String
+    name: String
+    description: String
+}
+```
+
+### 编写 Controller
+
+GraphQL 同样需要通过 Controller 来访问。相比与 MVC 中使用`@RequsetMapping`，在 GraphQL 中应该使用`@QueryMapping`。并且该`@QueryMapping`不需要定义请求路径，以下是一个具体示例
+
+#### @QueryMapping
+
+```java
+@QueryMapping
+public Collection<Article> articles()
+{
+    return queryService.listArticles();
+}
+```
+
+此处方法名为`articles()`，需要和`schema.graphqls`文件中`type Query`中定义的名称相同。
+
+这样当前端发送
+`query Article { articles { id } }`时，会匹配到这一个接口。该方法返回`type Article`中所包含的所有属性，之后`GraphQL`会更具前端传入的参数，自动保留需要的数据。
+
+例如在这个示例中，前端只请求了 id 和 title，所以只有 id 和 title 会被返回，其他的数据会被隐藏/删除。
+
+```
+query Article {
+  articles {
+    id
+    title
+  }
+}
+```
+
+查询的参数需要添加`@Argument`注解，否则会报错
+
+```java
+@QueryMapping
+public Article article(@Argument String id) {
+    return queryService.getArticleById(id);
+}
+```
+
+#### @SchemaMapping
+
+`@QueryMapping`和`@SchemaMapping`是 GraphQL 最核心的两个注解。`@QueryMapping`用于匹配请求地址，而`@SchemaMapping`将用于构建数据关系。
+
+以一个具体的例子来说
+
+```java
+@QueryMapping
+public Article article(@Argument String id) {
+    return queryService.getArticleById(id);
+}
+
+@SchemaMapping
+public Collection<Tag> tags(Article article)
+{
+    return queryService.getTagsByArticleId(article.id());
+}
+
+@SchemaMapping
+public Author author(Article article)
+{
+    return queryService.getAuthorByAuthorId(article.authorId());
+}
+```
+
+`tags()`方法将用于查询 Article 关联的 Tag，所以该方法的参数为`Article article`，返回数据为多条 Tag。同理，author 用于查询 Article 关联的 Author，所以返回数据为 Author 类型。
+
+### 保存数据
+
+#### 定义`schema.graphqls`
+
+```
+type Mutation {
+    # ！表示该参数为必须，:Article表示插入之后返回的数据类型
+    createArticle(article: ArticleInput!): Article
+}
+
+input ArticleInput {
+    title: String
+    content: String
+    authorId: String
+    tagId: String
+}
+```
+
+#### Controller
+
+```java
+@MutationMapping
+public Article createArticle(@Argument("article") ArticleInput article) {
+    return createService.createArticle(article);
+}
+```
+
+#### 调用该接口
+
+```
+mutation {
+  createArticle(
+    article: {title: "Sample Title", content: "Sample Content", authorId: "author-3", tagId: "2"}
+  ) {
+    id
+    title
+    content
+    author {
+      id
+      firstName
+      lastName
+    }
+    tags {
+      id
+      name
+      description
+    }
+  }
+}
+```
+
+### 删除/更新数据
+
+删除数据同样需要在`Mutation`中定义操作，:后面为操作完成之后返回的类型，这里不再详细描述
+
+```
+type Mutation {
+    deleteArticle(id: String!): Boolean
+    updateArticle(id: String!, article: ArticleInput!): Article
+}
+```
+
+后端项目地址[https://github.com/lnbiuc/graphql-start](https://github.com/lnbiuc/graphql-start)

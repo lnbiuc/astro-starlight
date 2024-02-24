@@ -1,0 +1,362 @@
+---
+title: Data Fetch in Nuxt.js
+description: Nuxt中如何进行数据请求，useFetch、$fetch、useAsyncData如何使用。
+---
+
+> Nuxt 中提供了 3 种方式进行数据请求，分别是`useFetch`、`$fetch`、`useAsyncData`。这三种在用法，配置上有一些不同。
+
+根据[Nuxt](https://nuxt.com/docs/getting-started/data-fetching)官网的描述，Nuxt 可以通过以下 3 种方式进行数据请求
+
+-   **useFetch**: 适合在组件中使用，例如在组件 setup 中用于页面初始的数据加载。
+-   **$fetch**: 适合在用户交互时发出请求。可以通过`this`访问，全局使用
+-   **useAsyncData**: 配合`$fetch`使用
+
+## useFetch
+
+```vue
+<script setup lang="ts">
+const { data } = await useFetch<any>('https://v1.hitokoto.cn/');
+</script>
+
+<template>
+	<div>
+		{{ data }}
+		<p>
+			<nuxt-link class="text-2xl text-violet" to="/about"> to about </nuxt-link>
+		</p>
+	</div>
+</template>
+```
+
+`useFetch`用于在页面组件中异步获取数据。useFetch 会在组件实例化之前被调用。可以通过以下方式设置返回值的类型.
+
+`useFetch`的第二个参数可以添加一些自定义配置，[可用的配置列表](https://nuxt.com/docs/api/composables/use-fetch#params)，例如自定义 header 等。这里主要使用的是`getCachedData`。
+
+以上代码会在路由切换是重新进行数据请求，然而在有些时候这是没有必要的，因为两次请求的数据相同的，基于此，可以考虑在客户端缓存请求到的数据。
+
+在以前，缓存数据可以通过`pinia`、`localstorage`等方式进行缓存，但是这些方式都需要单独进行配置，Nuxt3.8 中提供了客户端请求数据缓存的功能，可以在配置中使用该功能，具体代码如下。
+
+注意需要使用此功能需要开启`payloadExtraction`
+
+```ts
+export default defineNuxtConfig({
+	// ...
+	experimental: {
+		payloadExtraction: true,
+	},
+	// ...
+});
+```
+
+```vue
+<script setup lang="ts">
+const nuxtApp = useNuxtApp();
+const { data } = await useFetch<any>('https://blog-api.vio.vin/api/v1/tags/all', {
+	method: 'GET',
+	timeout: 3000,
+	headers: {
+		Accept: 'application/json',
+	},
+	getCachedData(key) {
+		return nuxtApp.payload.data[key] || nuxtApp.static.data[key];
+	},
+});
+</script>
+```
+
+由于 Nuxt 会讲数据缓存到`nuxtApp.payload`中，所以可以直接从缓存中读取数据。
+
+除此之外，还可以进行更精细化的控制，例如设置缓存过期时间，Nuxt 并没有提供这一功能，可以通过`transform`配置，在响应的数据中添加响应时间来判断缓存的数据是否过期。如果过期，直接 return，`useFetch`会重新请求数据，否则返回缓存中的数据，具体代码如下：
+
+```vue
+<script setup lang="ts">
+const nuxtApp = useNuxtApp();
+const { data } = await useFetch<any>('https://blog-api.vio.vin/api/v1/tags/all', {
+	method: 'GET',
+	timeout: 3000,
+	headers: {
+		Accept: 'application/json',
+	},
+	transform(input) {
+		return {
+			...input,
+			fetchedAt: new Date(),
+		};
+	},
+	getCachedData(key) {
+		const data = nuxtApp.payload.data[key] || nuxtApp.static.data[key];
+		if (!data) return null;
+
+		const expirationDate = new Date(data.fetchedAt);
+		// 缓存10s
+		expirationDate.setTime(expirationDate.getTime() + 10 * 1000);
+		const isExpired = expirationDate.getTime() < Date.now();
+		if (isExpired) return null;
+		return data;
+	},
+});
+</script>
+```
+
+## $fetch
+
+用于在用户交互时发送请求，`$fetch`不支持缓存配置。
+
+```vue
+<script setup lang="ts">
+async function fetchData() {
+	const { data } = await $fetch('https://blog-api.vio.vin/api/v1/tags/all');
+	console.log(data);
+}
+</script>
+
+<template>
+	<div>
+		<a @click="fetchData">fetch data</a>
+	</div>
+</template>
+```
+
+## useAsyncData
+
+用于处理多个请求，可配置相当于同时发起多个`useFetch`。`useAsyncData`最常用的方式是配合`$fetch`发起多个请求，例如：
+
+`useAsyncData`的第一个参数是用于缓存数据的 key
+
+```vue
+<script setup>
+const { data: discounts, pending } = await useAsyncData('cart-discount', async () => {
+	const [coupons, offers] = await Promise.all([$fetch('/cart/coupons'), $fetch('/cart/offers')]);
+
+	return { coupons, offers };
+});
+// discounts.value.coupons
+// discounts.value.offers
+</script>
+```
+
+## 其他可配置项
+
+这里列举一下我会用到的配置项，并不是全部
+
+-   `server`: `false`只在客户端执行该请求
+
+```vue
+<script setup>
+/* This call is performed before hydration */
+const { article } = await useFetch('api/article');
+
+/* This call will only be performed on the client */
+const { pending, data: posts } = useFetch('/api/comments', {
+	lazy: true,
+	server: false,
+});
+</script>
+```
+
+-   `refresh`: 重新获取数据
+
+```vue
+<script setup lang="ts">
+const { data, error, execute, refresh } = await useFetch('/api/users');
+</script>
+
+<template>
+	<div>
+		<p>{{ data }}</p>
+		<button @click="refresh">Refresh data</button>
+	</div>
+</template>
+```
+
+-   `watch`: 值更新时重新获取数据，可用于搜索框
+
+```vue
+<script setup lang="ts">
+const id = ref(1);
+
+const { data, error, refresh } = await useFetch('/api/users', {
+	/* Changing the id will trigger a refetch */
+	watch: [id],
+});
+</script>
+```
+
+## proxy
+
+一般来说，请求的 domain 可能是不固定的，此时需要使用到代理转发功能，nuxt 继承了网络框架 nitor，可以通过配置来实现转发功能。
+
+同时也能解决跨域问题。具体配置如下：
+
+```ts
+export default defineNuxtConfig({
+  // ...
+  routeRules: {
+    // 匹配所有api开头的请求，将/api/后的参数代理到http://blog-next-api/api/**
+    // 例如请求: '/api/v1/tags/all' === 'http://blog-next-api/api/v1/tags/all'
+    '/api/**': { proxy: { to: 'http://blog-next-api/api/**' } },
+  // ...
+})
+```
+
+## 请求封装
+
+有时候需要对请求进行全局拦截，加入请求前预处理和请求后检查请求状态，这里提供两种配置方式：
+
+### 整体配置
+
+```ts
+import type { FetchResponse } from 'ofetch';
+import type { UseFetchOptions } from '#app';
+
+// 自定义的响应数据结构
+export interface ResOptions<T> {
+	data?: T;
+	code?: number;
+	timestamp?: number;
+}
+
+type UrlType = string;
+
+export type HttpOption<T> = UseFetchOptions<ResOptions<T>>;
+
+function handleError<T>(response: FetchResponse<ResOptions<T>> & FetchResponse<ResponseType>) {
+	const err = (text: string) => {
+		console.error(text);
+	};
+	if (!response._data) {
+		err('请求超时，服务器无响应！');
+		return;
+	}
+	const handleMap: { [key: number]: () => void } = {
+		404: () => err('服务器资源不存在'),
+		500: () => err('服务器内部错误'),
+		403: () => err('没有权限访问该资源'),
+	};
+	handleMap[response.status] ? handleMap[response.status]() : err('未知错误！');
+}
+
+function fetch<T>(url: UrlType, option: UseFetchOptions<ResOptions<T>>) {
+	return useFetch<ResOptions<T>>(url, {
+		// 请求拦截器
+		onRequest({ options }) {
+			// 在这里判断错误
+			return options;
+		},
+		// 响应拦截
+		onResponse({ response }) {
+			if (response.headers.get('content-disposition') && response.status === 200)
+				return response;
+			// 在这里判断错误
+			if (response._data.code !== 200) {
+				handleError<T>(response);
+				return Promise.reject(response._data);
+			}
+			// 成功返回
+			return response._data;
+		},
+		// 错误处理
+		onResponseError({ response }) {
+			handleError<T>(response);
+			return Promise.reject(response?._data ?? null);
+		},
+		// 合并参数
+		...option,
+	});
+}
+
+// 自动导出
+export const useHttp = {
+	get: <T>(url: UrlType, params?: any, option?: HttpOption<T>) => {
+		return fetch<T>(url, { method: 'get', params, ...option });
+	},
+
+	post: <T>(url: UrlType, body?: any, option?: HttpOption<T>) => {
+		return fetch<T>(url, { method: 'post', body, ...option });
+	},
+
+	put: <T>(url: UrlType, body?: any, option?: HttpOption<T>) => {
+		return fetch<T>(url, { method: 'put', body, ...option });
+	},
+
+	delete: <T>(url: UrlType, body?: any, option?: HttpOption<T>) => {
+		return fetch<T>(url, { method: 'delete', body, ...option });
+	},
+};
+```
+
+```ts
+import { useHttp } from '~/composables/useHttp';
+
+export async function getAllArticle(pageNumber: number, pageSize: number) {
+	return await useHttp.post('/api/v1/articles/page', { pageNumber, pageSize });
+}
+```
+
+### 精细化配置
+
+单个请求配置
+
+```ts
+// repository.ts
+import type { NitroFetchRequest, $Fetch } from 'nitropack';
+
+// 定义返回类型
+type User = {
+	id: number;
+	name: string;
+	username: string;
+	email: string;
+	address: {
+		street: string;
+		suite: string;
+		city: string;
+		zipcode: string;
+		geo: {
+			lat: string;
+			lng: string;
+		};
+	};
+};
+
+export const userRepository = <T>(fetch: $Fetch<T, NitroFetchRequest>) => ({
+	async get(): Promise<User[]> {
+		return fetch<User[]>('/users');
+	},
+});
+```
+
+basepath 或 proxy
+
+```ts
+// plugins/api.ts
+export default defineNuxtPlugin({
+	setup() {
+		const api = $fetch.create({
+			baseURL: 'http://blog-next-api/', // useRuntimeConfig().public.apiBaseUrl
+		});
+
+		return {
+			provide: {
+				api,
+			},
+		};
+	},
+});
+```
+
+使用
+
+```vue
+<script setup lang="ts">
+const { $api } = useNuxtApp();
+const userRepo = userRepository($api);
+const { data } = await useAsyncData(() => userRepo.get());
+</script>
+<template>
+	<div>
+		<h1>Users</h1>
+		{{ data }}
+	</div>
+</template>
+```

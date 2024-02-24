@@ -1,0 +1,32 @@
+---
+title: Screen Command Note
+description: 'null'
+---
+
+## 查看所有 screen
+
+```shell
+screen -ls
+```
+
+## 新建
+
+```shell
+screen -S <session_name>
+```
+
+## 连接到现有 session
+
+```shell
+screen -r session_name
+```
+
+## 返回
+
+`ctrl + a + d`
+
+## 删除所有
+
+```shell
+screen -ls | grep -o '[0-9]*\.[^\t]*' | while read -r line; do screen -X -S "${line}" quit; done
+```

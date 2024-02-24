@@ -1,0 +1,17 @@
+---
+const allPosts = await Astro.glob('../content/docs/article/*.mdx');
+
+import { getFileName } from '../utils';
+---
+
+<div class="my-6">
+	<ul>
+		{
+			allPosts.map(post => (
+				<li>
+					<a href={`/article/${getFileName(post.url)}`}>{post.frontmatter.title}</a>
+				</li>
+			))
+		}
+	</ul>
+</div>

@@ -1,0 +1,50 @@
+---
+title: 使用无界面浏览器生成网页截图_
+description: 使用Docker部署一个无界面浏览器，用于生成网页截图，并使用API远程调用
+---
+
+## ✨ 开始
+
+之前看到了[Cali](https://cali.so/)大佬的博客，其中有一个非常有意思的功能引起了我的兴趣
+
+![](https://static.vio.vin/blog/2024/02/0d5e69ac1f50803c51d20030a44d659b.gif)
+
+当鼠标悬浮在链接上时，会实时生成该链接对应的网页截图，根据[https://cali.so/blog/guide-for-cloning-my-site](https://cali.so/blog/guide-for-cloning-my-site)的文章介绍，该功能使用了第三方服务[urlbox](https://urlbox.com/)来实现，这是一个付费服务，每月价格为 9$，于是放弃了使用该功能的想法。�
+
+![](https://static.vio.vin/blog/2024/02/29fe25ee6ab02c5c9e9926b1faebdf83.png)
+
+## �Puppeteer
+
+后来我想起来之前有看到过一篇文章，介绍了一种以无图形界面的浏览器，又称'无头浏览器'，个人更愿意成为无界面浏览器，英文名为`headless browser`。通过一个 Node.js 库[Puppeteer](https://pptr.dev/)可以实现对 Chrome/Chromium 浏览器内核的操作，Puppeteer 以无界面的形式运行，通过 Puppeteer 和 Chromium 配合，可以实现无界面浏览器。
+
+[Puppeteer](https://pptr.dev/)有详细的操作文档，详细的介绍了如何使用，无界面浏览器拥有普通浏览器所有的功能，但是我需要的仅仅是生成网页截图这一项功能，如果需要实现这一功能，需要自行部署 Puppeteer 并且使用 Node.js 写一个 API，接受至少一个参数-网址，之后生成网页截图并返回生成的图片文件。那么有没有一种简单的方式可以实现以上这些功能的同时，又方便部署呢，答案是有的。
+
+## �mingalevme/screenshoter
+
+[mingalevme/screenshoter](https://github.com/mingalevme/screenshoter) 是我使用 Docker + Puppeteer 搜索到的 Github 项目，该项目将 Docker 和 Puppeteer 整合，提供了一套完整的 API 用于生成网页截图，并且以 Docker 的形式运行，只需要一行命令就可以启动。
+
+```shell
+docker run -d --restart always -p 8080:8080 --name screenshoter mingalevme/screenshoter
+```
+
+之后通过调用 API，传入需要截图的网址即可生成网页截图。以下是一个示例：
+
+![](https://static.vio.vin/blog/2024/02/e135f8c5decb47b0f59f5be2ddac8492.png)
+
+## � 实际使用
+
+通过无界面浏览器，可以轻松实现对于任意网页的截图，对于国外网站，[mingalevme/screenshoter](https://github.com/mingalevme/screenshoter)支持配置代理。
+
+基于此，我计划实现以下功能。
+
+-   友链网址截图
+
+我打算将该功能过加到网站的友链功能上，后端对于友链中的网址进行预请求，将截图上传到本站图床 Cloudflare R2 上，每 3 天更新一次，这样在友链列表就可以看见朋友的网站内容了。
+
+-   Open Graph Image
+
+在 Twitter 中输入一个网址，Twitter 将该网址显示为一张图片。例如[mingalevme/screenshoter](https://github.com/mingalevme/screenshoter)该仓库将显示为：
+
+![](https://static.vio.vin/blog/2024/02/4e179bbbae1cdffbd4b1d02b065cc736.png)
+
+这是通过解析网页返回的 HTML 文件中 Meta 标签中的`twitter:image:src`实现的，通过向网站 Header 中加入对网站的截图，可以在 Twitter、Facebook 等网站中直接显示网站的内容图片，而不是一段英文链接，这对于吸引用户点就浏览是很有帮助的。

@@ -1,0 +1,668 @@
+---
+title: Bos Plugin Template
+description: A template for creating a new Bos plugin
+---
+
+## 批量新增行
+
+```java
+public class orderproreqbillFromEdit extends AbstractFormPlugin {
+
+    @Override
+    public void afterDoOperation(AfterDoOperationEventArgs args)
+    {
+        super.afterDoOperation(args);
+        String operateKey = args.getOperateKey();
+        OperationResult operationResult = args.getOperationResult();
+        if ("batchcreate".equals(operateKey) && operationResult.isSuccess()) {
+            this.getModel().batchCreateNewEntryRow("分录标识",10);
+        }
+    }
+}
+```
+
+## 查询单据（一张）
+
+```java
+DynamicObject dynamicObject = BusinessDataServiceHelper.loadSingle("单据标识", "id,billno,billstatus,分录标识,分录标识.字段标识",
+                new QFilter[]{new QFilter("字段", QCP.equals, "过滤值")});
+        dynamicObject.set("标识","赋值");
+        SaveServiceHelper.save(new DynamicObject[]{dynamicObject});
+```
+
+## 定时任务
+
+!!! abstract 文档
+[https://developer.kingdee.com/article/226086468627134208?productLineId=29](https://developer.kingdee.com/article/226086468627134208?productLineId=29)
+
+!!!
+
+```java
+public class ResourceFilterTask extends AbstractTask
+{
+    @Override
+    public void execute(RequestContext requestContext, Map<String, Object> map) throws KDException
+    {
+
+    }
+}
+```
+
+## 查询一张单据
+
+```java
+DynamicObject resource = BusinessDataServiceHelper.loadSingle(dynamicObject.getLong("标识.id"),"标识");
+```
+
+## 查询多张单据
+
+```java
+DynamicObject[] basemodelib = BusinessDataServiceHelper.load("标识", "id", null);
+```
+
+## 代码执行操作（提交，审核，反审核）
+
+```java
+OperationServiceHelper.executeOperate("disable", resource.getDynamicObjectType().getName(), new DynamicObject[]{resource}, Utils.getOption());
+```
+
+## 服务插件获取子单据体
+
+```java
+for(DynamicObject entity: entities)
+{
+    // 收款单 收款明细
+    DynamicObjectCollection collection = entity.getDynamicObjectCollection("标识");
+    if(collection.isEmpty())
+    {
+        continue;
+    }
+    for(DynamicObject dynamicObject: collection)
+    {
+        // 认领明细（子单据体）
+        DynamicObjectCollection subCollection = dynamicObject.getDynamicObjectCollection("标识");
+        if(subCollection.isEmpty())
+        {
+            continue;
+        }
+    }
+}
+```
+
+## 根据人员携带部门
+
+```java
+/**
+ * 根据申请人携带所属部门
+ */
+private void bringDept()
+{
+    DynamicObject dataEntity = this.getModel().getDataEntity();
+    long applyUser = dataEntity.getLong("标识.id");
+    if(applyUser > 0)
+    {
+        DynamicObject mainUserdep = CommonUtils.getMainUserdep(applyUser);
+        if(mainUserdep != null)
+        {
+            this.getModel().setValue("标识", mainUserdep.getLong("id"));
+        }
+        else
+        {
+            this.getModel().setValue("标识", null);
+        }
+    }
+    else
+    {
+        this.getModel().setValue("标识", null);
+    }
+}
+```
+
+## 单据体行着色
+
+```java
+EntryGrid entryGrid = this.getControl("标识");
+entryGrid.setRowBackcolor("rgba(251,35,35,0.1)", rows.stream().mapToInt(Integer::intValue).toArray());
+```
+
+## 代码设置字段必录
+
+```java
+FieldEdit control = this.getView().getControl("标识");
+control.setMustInput(true);
+```
+
+## 单据体新增行
+
+```java
+IDataModel model = this.getModel();
+int entryRow = model.createNewEntryRow("分录标识");
+model.setValue("字段标识", "P", entryRow);
+```
+
+## 列表过滤
+
+```java
+public class listFilter extends AbstractListPlugin
+{
+    @Override
+    public void setFilter(SetFilterEvent e)
+    {
+        List<QFilter> qFilterList = e.getQFilters();
+        qFilterList.add(new QFilter("标识", QCP.equals, "B"));
+    }
+}
+```
+
+## 从附件面板获取附件
+
+```java
+AttachmentPanel panel = this.getControl("标识"))
+List<Map<String, Object>> attachmentData = panel.getAttachmentData();
+```
+
+## 下推 单据转换插件
+
+```java
+public class ShippingDetailToTransferOrderConvert extends AbstractConvertPlugIn
+{
+    @Override
+    public void afterConvert(AfterConvertEventArgs e)
+    {
+        super.afterConvert(e);
+        // 目标单据
+        String targetName = this.getTgtMainType().getName();
+        // 来源单据
+        String sourceName = this.getSrcMainType().getName();
+        if (!"标识".equals(targetName) || !"标识".equals(sourceName)) {
+            return;
+        }
+        ExtendedDataEntity[] findByEntityKeys = e.getTargetExtDataEntitySet().FindByEntityKey(targetName);
+        for (ExtendedDataEntity findByEntityKey : findByEntityKeys) {
+            // origin data
+            DynamicObject dataEntity = findByEntityKey.getDataEntity();
+            long sourcebillid = dataEntity.getLong("标识");
+            DynamicObject sourceEntryData = BusinessDataServiceHelper.loadSingle(sourcebillid, sourceName);
+            // 商品明细
+            DynamicObjectCollection materialinfo = sourceEntryData.getDynamicObjectCollection("标识");
+
+            // 出运汇总
+            DynamicObjectCollection salesorderTotal = sourceEntryData.getDynamicObjectCollection("标识");
+
+            Map<Long, DynamicObjectCollection> map = new LinkedHashMap<>();
+
+            for (DynamicObject object : salesorderTotal) {
+
+                // 明细行号ID
+                long id = object.getLong("标识");
+
+                for (DynamicObject materialinfoEntitiy : materialinfo) {
+                    if (id == materialinfoEntitiy.getLong("id")) {
+                        map.put(object.getLong("id"), materialinfoEntitiy.getDynamicObjectCollection("标识"));
+                    }
+                }
+            }
+
+            DynamicObjectCollection targetMaterialinfo = dataEntity.getDynamicObjectCollection("标识");
+            for (DynamicObject object : targetMaterialinfo) {
+                long sourceentryid = object.getLong("标识");
+                if (map.containsKey(sourceentryid)) {
+                    DynamicObjectCollection multiconfig = object.getDynamicObjectCollection("标识");
+                    multiconfig.addAll(map.get(sourceentryid));
+                }
+            }
+        }
+    }
+}
+```
+
+## 从附件面板获取附件
+
+```java
+AttachmentServiceHelper.getAttachments("单据标识", file.getPkValue().toString(), "附件面板标识");
+```
+
+## 代码赋值，但不触发值更新
+
+```java
+this.getModel().beginInit();
+model.setValue("标识", calcedTotalWeight, index);
+this.getView().updateView("标识");
+this.getModel().endInit();
+```
+
+## 打开单据
+
+```java
+public static void OpenFrom(IFormView view, Object okid, String Formid)
+{
+    BillShowParameter parameter = new BillShowParameter(); //跳转指定单据
+    parameter.setPkId(okid);
+    parameter.getOpenStyle().setShowType(ShowType.MainNewTabPage);
+    parameter.setFormId(Formid);
+    parameter.setStatus(OperationStatus.EDIT);
+    view.showForm(parameter);
+}
+```
+
+## 附件回填
+
+### 动态表单
+
+```java
+public class ContractResignEdit extends AbstractFormPlugin implements UploadListener
+{
+    private static final Log log = LogFactory.getLog(ContractResignEdit.class);
+
+
+    @Override
+    public void registerListener(EventObject e)
+    {
+        super.registerListener(e);
+
+        AttachmentPanel attachmentPanel = this.getView().getControl("附件面板");
+        attachmentPanel.addUploadListener(this);
+
+        this.addClickListeners("btncancel", "btnok");
+    }
+
+    @Override
+    public void beforeUpload(BeforeUploadEvent evt) {
+        UploadListener.super.beforeUpload(evt);
+        IPageCache pageCache = this.getView().getPageCache();
+        pageCache.put("falg", null);
+    }
+
+    @Override
+    public void afterUpload(UploadEvent evt) {
+        this.addAttachmentContext(this.getModel(), this.getView());
+        IPageCache pageCache = this.getView().getPageCache();
+        pageCache.put("falg", null);
+    }
+
+    private void addAttachmentContext(IDataModel model, IFormView view) {
+        IPageCache cache = this.getPageCache();
+        List<Map<String, Object>> addAttachmentData = getCache(cache);
+
+        cache.put("attach", addAttachmentData.toString());
+        log.error("上传附件之后：" + addAttachmentData);
+    }
+
+    @Override
+    public void upload(UploadEvent evt) {
+        Object[] urls = evt.getUrls();
+        IPageCache cache = this.getPageCache();
+        List<Map<String, Object>> addAttachmentData = getCache(cache);
+        for (Object url : urls) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> att = (Map<String, Object>) url;
+            addAttachmentData.add(att);
+            log.error("上传附件：" + addAttachmentData);
+        }
+        cache.put("attach", JSONObject.toJSONString(addAttachmentData));
+    }
+
+    @Override
+    public void remove(UploadEvent evt) {
+        this.removeAttachmentContext(this.getView(), this.getModel(), evt);
+    }
+
+    private void removeAttachmentContext(IFormView view, IDataModel model, UploadEvent evt) {
+        IFormView parentView = view.getParentView();
+        AttachmentPanel panel = parentView.getControl("附件面板");
+        AttachmentPanel source = (AttachmentPanel) evt.getSource();
+
+        IPageCache cache = this.getPageCache();
+        List<Map<String, Object>> addAttachmentData = getCache(cache);
+
+        Object[] urls = evt.getUrls();
+        for (Object url : urls) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> att = (Map<String, Object>) url;
+            panel.remove(att);
+
+            for (int i = 0; i < addAttachmentData.size(); i++) {
+                Map<String, Object> map = addAttachmentData.get(i);
+                if (map.get("name").equals(att.get("name"))) {
+                    addAttachmentData.remove(i);
+                }
+            }
+        }
+        cache.put("attach", JSONObject.toJSONString(addAttachmentData));
+        log.error("删除附件：" + addAttachmentData);
+        evt.setCancel(true);
+        List<Map<String, Object>> attachmentData = panel.getAttachmentData();
+        attachmentData.addAll(addAttachmentData);
+        source.bindData(attachmentData);
+        parentView.invokeOperation("refresh");
+        view.sendFormAction(parentView);
+    }
+
+    @Override
+    public void click(EventObject e)
+    {
+        super.click(e);
+        Control source = (Control) e.getSource();
+        String key = source.getKey();
+        if ("btncancel".equals(key)) {
+            this.getView().returnDataToParent(null);
+            this.getView().close();
+        }
+        if ("btnok".equals(key)) {
+            btnOk();
+        }
+    }
+
+    private void btnOk() {
+        DynamicObject dataEntity = this.getModel().getDataEntity();
+        HashMap<String, Object> hashMap = new HashMap<>();
+        IPageCache cache = this.getPageCache();
+        List<Map<String, Object>> addAttachmentData = getCache(cache);
+        hashMap.put("attach", addAttachmentData);
+        long user = dataEntity.getLong("用户.id");
+        Date date = dataEntity.getDate("日期");
+        hashMap.put("user", user);
+        hashMap.put("date", date);
+        log.error("关闭界面之前：" + addAttachmentData);
+        this.getView().returnDataToParent(hashMap);
+        this.getView().close();
+        addAttachmentData.clear();//关闭界面清空上传附件
+        log.error("关闭界面：" + addAttachmentData);
+    }
+
+    @Override
+    public void afterCreateNewData(EventObject e) {
+        super.afterCreateNewData(e);
+        this.creadteAttach(this.getView(), this.getModel(), e);
+        IPageCache cache = this.getPageCache();
+        List<Map<String, Object>> addAttachmentData = getCache(cache);
+        log.error("刷新界面" + addAttachmentData);
+    }
+
+    private void creadteAttach(IFormView view, IDataModel model, EventObject e) {
+        FormShowParameter showParameter = view.getFormShowParameter();
+        List<String> filtername = new ArrayList<>();
+        List<Map<String, Object>> attach = showParameter.getCustomParam("attach");
+        if (attach != null && attach.size() > 0) {
+            AttachmentPanel panel = view.getControl("附件面板");
+            for (Map<String, Object> map : attach) {
+                map.put("lastModified", new Date().getTime());
+                filtername.add((String)map.get("name"));
+            }
+            panel.upload(attach);
+            view.updateView("附件面板");
+
+        }
+    }
+
+    /**
+     * 从缓存中获取附件
+     * @param cache
+     * @return
+     */
+    private List<Map<String, Object>> getCache(IPageCache cache) {
+        String attach = cache.get("attach");
+        List<Map<String, Object>> addAttachmentData = null;
+        if (attach != null) {
+            addAttachmentData = getJson(attach) == null ? new ArrayList<>() : getJson(attach);
+        }else {
+            addAttachmentData = new ArrayList<>();
+        }
+        return addAttachmentData;
+    }
+
+    /**
+     * 将从缓存中取到的附件转换成List<Map<String,Object>>
+     * @param attach
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> getJson(String attach) {
+        List<Object> parseArray = (List<Object>) JSONArray.parseObject(attach, List.class);
+        List<Map<String, Object>> List = new ArrayList<>();
+        for (Object parse : parseArray) {
+            Map<String, Object> map = (Map<String, Object>) parse;
+            List.add(map);
+        }
+        return List;
+    }
+}
+```
+
+### 单据
+
+```java
+@Override
+public void beforeDoOperation(BeforeDoOperationEventArgs e)
+{
+    // 双签附件回填
+    if("contractresigning".equals(operateKey))
+    {
+        String billstatus = dataEntity.getString("billstatus");
+        if("C".equals(billstatus))
+        {
+            FormShowParameter parameter = new FormShowParameter();
+            parameter.setStatus(OperationStatus.ADDNEW);
+            parameter.getOpenStyle().setShowType(ShowType.Modal);
+            parameter.setFormId("动态表单标识");
+            parameter.setCloseCallBack(new CloseCallBack(this, "关闭标识"));
+            view.showForm(parameter);
+        }
+        else
+        {
+            this.getView().showErrorNotification("当前合同还未审核，不允许回签！");
+        }
+    }
+}
+
+public void putAttachmentData(Map < String, Object > attachInfor, IDataModel modal, IFormView view)
+{
+    String entityId = view.getEntityId();
+    view.invokeOperation("refresh");
+    if(attachInfor != null)
+    {
+        List < Map < String, Object >> retData = (List < Map < String, Object >> ) attachInfor.get("attach");
+        Long userId = (Long) attachInfor.get("user");
+        Date date = (Date) attachInfor.get("date");
+        DynamicObject dataEntity = modal.getDataEntity(true);
+        // ...
+        if(retData != null && !retData.isEmpty())
+        {
+            for(Map < String, Object > map: retData)
+            {
+                String url = (String) map.get("url");
+                String name = (String) map.get("name");
+                // 持久化附件到服务器
+                url = SalesOrderUtils.uploadTempfile(url, name);
+                map.put("url", url);
+                map.put("creator", UserServiceHelper.getCurrentUserId());
+                map.put("modifytime", new Date().getTime());
+            }
+            AttachmentServiceHelper.upload(entityId, dataEntity.getPkValue(), "yem_attachmentpanelap", retData);
+        }
+        SaveServiceHelper.save(new DynamicObject[]
+        {
+            dataEntity
+        });
+        view.invokeOperation("refresh");
+    }
+}
+
+@Override
+public void closedCallBack(ClosedCallBackEvent e)
+{
+    if("关闭标识".equals(actionId))
+    {
+        putAttachmentData((Map < String, Object > ) returnData, this.getModel(), this.getView());
+    }
+}
+
+// 附件持久化
+public static String uploadTempfile(String url, String name)
+{
+    TempFileCache cache = CacheFactory.getCommonCacheFactory().getTempFileCache();
+    InputStream in = cache.getInputStream(url);
+    FileService service = FileServiceFactory.getAttachmentFileService();
+    RequestContext requestContext = RequestContext.get();
+    String uuid = UUID.randomUUID().toString().replace("-", "");
+    // 生成文件路径-上传附件时远程服务器需要存储文件的位置
+    String pathParam = FileNameUtils.getAttachmentFileName(requestContext.getTenantId(), requestContext.getAccountId(), uuid, name); 
+    FileItem fileItem = new FileItem(name, pathParam, in );
+    // 上传附件到文件服务器
+    return service.upload(fileItem);
+}
+```
+
+## 行政组织/业务单元通过上级组织
+
+```java
+List<Long> ids = new ArrayList<>();
+long orgId = org.getLong("id");
+ids.add(orgId);
+QFilter qFilter = new QFilter("org.id", QCP.equals, orgId);
+// 业务单元视图默认方案
+qFilter.and(new QFilter("view.number", QCP.equals, "15"));
+DynamicObject single = BusinessDataServiceHelper.loadSingle("bos_org_structure", qFilter.toArray());
+if (single == null) return;
+List<Long> allSubordinateOrgs = OrgUnitServiceHelper.getAllSubordinateOrgs(single.getString("parent.number"), ids, true);
+QFilter qFilterA = new QFilter("id", QCP.in, allSubordinateOrgs);
+e.addCustomQFilter(qFilterA);
+```
+
+```java
+public static QFilter getOrgFilter(DynamicObject org) {
+    if (org == null) return null;
+    List < Long > ids = new ArrayList < > ();
+    String number = org.getString("number");
+    QFilter qFilter = new QFilter("longnumber", QCP.like, "%!" + number + "!%");
+    qFilter.and(new QFilter("view.number", QCP.equals, "15"));
+    DynamicObject[] entries = BusinessDataServiceHelper.load("bos_org_structure", "id, org.id", qFilter.toArray());
+    for (DynamicObject dynamicObject: entries) {
+        long orgId = dynamicObject.getLong("org.id");
+        ids.add(orgId);
+    }
+    return new QFilter("id", QCP.in, ids);
+}
+```
+
+## BigDecimal 比较大小
+
+```java
+if (a.compareTo(b) == -1){
+    System.out.println("a小于b");
+}
+if (a.compareTo(b) == 0){
+    System.out.println("a等于b");
+}
+if (a.compareTo(b) == 1){
+    System.out.println("a大于b");
+}
+if (a.compareTo(b) > -1){
+    System.out.println("a大于等于b");
+}
+if (a.compareTo(b) < 1){
+    System.out.println("a小于等于b");
+}
+```
+
+## 多选基础资料取值
+
+```java
+DynamicObjectCollection shipports = dataEntity.getDynamicObjectCollection("shipports");
+DynamicObject dynamicObject = shipports.getDynamicObject("fbasedataid");
+dynamicObject.getString("namecn")
+```
+
+## 获取列表过滤条件字段值
+
+-   列表
+
+```java
+List<Object> selectedMainOrgIds = this.getControlFilters().getFilter("org.id");
+this.getPageCache().put("currSelectedOrg", JSON.toJSONString(selectedMainOrgIds));
+```
+
+-   单据
+
+```java
+String currSelectedOrg = this.getView().getParentView().getPageCache().get("currSelectedOrg");
+Object parse = JSON.parse(currSelectedOrg);
+```
+
+## beforeDoOperation
+
+```java
+@Override
+public void beforeDoOperation(BeforeDoOperationEventArgs args)
+{
+    super.beforeDoOperation(args);
+    FormOperate operate = (FormOperate) args.getSource();
+    String operateKey = operate.getOperateKey();
+    if ("new".equals(operateKey)) {
+}
+```
+
+## FormShowParameter
+
+```java
+FormShowParameter parameter = new FormShowParameter();
+parameter.setStatus(OperationStatus.ADDNEW);
+parameter.getOpenStyle().setShowType(ShowType.Modal);
+parameter.setFormId("formId");
+parameter.setCustomParam("opType", operateKey);
+parameter.setCloseCallBack(new CloseCallBack(this, "formId"));
+view.showForm(parameter);
+```
+
+## ListShowParameter
+
+```java
+ListShowParameter parameter = new ListShowParameter();
+parameter.setBillFormId("单据标识");
+parameter.setMultiSelect(true);
+parameter.setParentPageId(this.getView().getPageId());
+parameter.setStatus(OperationStatus.VIEW);
+parameter.getOpenStyle().setShowType(ShowType.Modal);
+parameter.getOpenStyle().setCacheId(parameter.getPageId());
+parameter.setLookUp(true);
+StyleCss css = new StyleCss();
+css.setHeight("580");
+css.setWidth("960");
+parameter.getOpenStyle().setInlineStyleCss(css);
+// 过滤条件
+ListFilterParameter listFilterParameter = new ListFilterParameter();
+listFilterParameter.setFilter(qFilter);
+parameter.setListFilterParameter(listFilterParameter);
+parameter.setCloseCallBack(new CloseCallBack(this, "actionId"));
+```
+
+## 二次确认弹窗
+
+```java
+@Override
+public void registerListener(EventObject e) {
+    this.addClickListeners("btnok");
+}
+
+@Override
+public void confirmCallBack(MessageBoxClosedEvent e) {
+    super.confirmCallBack(e);
+    String callBackId = e.getCallBackId();
+    if ("btnok".equals(callBackId)) {
+        if (MessageBoxResult.Yes.equals(e.getResult())) {
+            btnOk();
+        }
+    }
+}
+
+@Override
+public void click(EventObject e) {
+    super.click(e);
+    Control control = (Control) e.getSource();
+    String key = control.getKey();
+    if ("btnok".equals(key)) {
+        ConfirmCallBackListener confirmCallBackListener = new ConfirmCallBackListener("btnok", this);
+        this.getView().showConfirm(sb.toString(), MessageBoxOptions.YesNo, confirmCallBackListener);
+    }
+}
+```
