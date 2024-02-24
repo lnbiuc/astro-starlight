@@ -23,14 +23,14 @@ export default defineConfig({
 					autogenerate: { directory: 'short' },
 				},
 			],
-			editLink: {
-				baseUrl: 'https://github.com/withastro/starlight/edit/main/',
-			},
 			social: {
 				github: 'https://github.com/lnbiuc',
 				'x.com': 'https://x.com/@ZZSLL_53387',
 			},
 			pagination: false,
+			editLink: {
+				baseUrl: 'https://github.com/lnbiuc/astro-starlight/edit/master/',
+			},
 		}),
 		tailwind({
 			applyBaseStyles: false,
