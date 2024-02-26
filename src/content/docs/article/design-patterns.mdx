@@ -17,12 +17,16 @@ description: 24大设计模式和7个原则
 
 ## 24设计模式
 
-### 创建型模式
+---
+
+## 创建型模式
+
+---
 
 - 单例模式【Singleton Pattern】:确保一个类只有一个实例，并提供该实例的全局访问点
 - 简单工厂【Simple Factory Pattern】: 由一个工厂对象决定创建出哪一种产品类的实例
 
-#### 单例模式
+### 单例模式
 
 - 双重校验锁实现
 
@@ -106,7 +110,7 @@ public class Singleton {
 
   而使用静态内部类实现，类`private static class SingletonHolder`是私有的，无法通过反射获取到该类的构造函数，因此无法通过反射创建新的实例。
 
-#### 简单工厂
+### 简单工厂
 
 > [https://www.jianshu.com/p/a9f397c4ff98](https://www.jianshu.com/p/a9f397c4ff98)
 
@@ -196,7 +200,7 @@ sequenceDiagram
     Client ->> Api: api.method
 ```
 
-#### 工厂方法
+### 工厂方法
 
 > https://www.jianshu.com/p/f1960652b64b
 
