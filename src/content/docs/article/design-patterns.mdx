@@ -15,7 +15,7 @@ description: 24大设计模式和7个原则
 - 开闭原则【OPEN CLOSE PRINCIPLE】: 一个软件实体如类、模块和函数应该对扩展开放，对修改关闭。
 - 组合/聚合复用原则【Composition/Aggregation Reuse Principle(CARP) 】: 尽量使用组合和聚合少使用继承的关系来达到复用的原则。
 
-## 24大设计模式
+## 24设计模式
 
 ### 创建型模式
 
@@ -86,7 +86,7 @@ public class Singleton {
 
 
 > 使用双重校验锁实现`public class Singleton`类是公有的，可以通过反射获取到该类的构造函数，将其设为`public`从而创建新的实例。具体如下：
-  
+
   ```java
   public static void main(String[] args) {
         try {
@@ -195,3 +195,123 @@ sequenceDiagram
     Factroy -->> Client: rentun instance
     Client ->> Api: api.method
 ```
+
+#### 工厂方法
+
+> https://www.jianshu.com/p/f1960652b64b
+
+父类在不知道方法具体实现的情况下完成方法调用，具体方法实现由子类完成
+
+实现步骤：
+
+1. 定义工厂类（父类）：父类通常是一个抽象类，也可以是interface或class，包含工厂方法，即每个产品都需要实现的方法（默认方法）。
+2. 工厂类中的产品的具体实现。
+
+
+
+一个具体的例子
+
+- 定义工厂
+
+```java
+/**
+ * 导出的文件对象的接口
+ */
+public interface ExportFileApi {
+   /**
+    * 导出内容成为文件
+    * @param data 示意：需要保存的数据
+    * @return 是否导出成功
+    */
+   public boolean export(String data);
+}
+```
+
+- 定义工厂要生产的具体内容（方法的具体实现）
+
+```java
+/**
+   * 导出成文本文件格式的对象
+   */
+public class ExportTxtFile implements ExportFileApi{
+      public boolean export(String data) {
+          //简单示意一下，这里需要操作文件
+          System.out.println("导出数据"+data+"到文本文件");
+          return true;
+      }
+}
+
+/**
+   * 导出成数据库备份文件形式的对象
+   */
+public class ExportDB implements ExportFileApi{
+      public boolean export(String data) {
+          //简单示意一下，这里需要操作数据库和文件
+          System.out.println("导出数据"+data+"到数据库备份文件");
+          return true;
+      }
+}
+```
+
+- 创建器，用于创建工厂生产内容的实现
+
+```java
+/**
+   * 实现导出数据的业务功能对象
+   */
+public abstract class ExportOperate {
+      /**
+       * 导出文件
+       * @param data 需要保存的数据
+       * @return 是否成功导出文件
+       */
+      public boolean export(String data){
+          //使用工厂方法
+          ExportFileApi api = factoryMethod();
+          return api.export(data);
+      }
+      /**
+       * 工厂方法，创建导出的文件对象的接口对象
+       * @return 导出的文件对象的接口对象
+       */
+      protected abstract ExportFileApi factoryMethod();
+}
+```
+
+- 创建器的具体实现
+
+```java
+/**
+   * 具体的创建器实现对象，实现创建导出成文本文件格式的对象
+   */
+public class ExportTxtFileOperate extends ExportOperate{
+      protected ExportFileApi factoryMethod() {
+          //创建导出成文本文件格式的对象
+          return new ExportTxtFile();
+      }
+}
+
+/**
+   * 具体的创建器实现对象，实现创建导出成数据库备份文件形式的对象
+   */
+public class ExportDBOperate extends ExportOperate{
+      protected ExportFileApi factoryMethod() {
+          //创建导出成数据库备份文件形式的对象
+          return new ExportDB();
+      }
+}
+```
+
+- 使用
+
+```java
+public class Client {
+      public static void main(String[] args) {
+          //创建需要使用的Creator对象
+          ExportOperate operate = new ExportDBOperate();
+          //调用输出数据的功能方法
+          operate.export("测试数据");
+      }
+}
+```
+
