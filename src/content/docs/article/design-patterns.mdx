@@ -1,0 +1,108 @@
+---
+title: 24大设计模式和7个原则
+description: 24大设计模式和7个原则
+---
+
+## 7个原则
+
+- 单一职责原则【SINGLE RESPONSIBILITY PRINCIPLE】: 一个类负责一项职责。
+- 里氏替换原则【LISKOV SUBSTITUTION PRINCIPLE】: 继承与派生的规则。
+- 依赖倒置原则【DEPENDENCE INVERSION PRINCIPLE】: 高层模块不应该依赖低层模块，二者都应该依赖其抽象；抽象不应该依赖细节；细节应该依赖抽象。
+即针对接口编程，不要针对实现编程。
+- 接口隔离原则【INTERFACE SEGREGATION PRINCIPLE】: 
+- 建立单一接口，不要建立庞大臃肿的接口，尽量细化接口，接口中的方法尽量少。
+- 迪米特法则【LOW OF DEMETER】: 低耦合，高内聚。
+- 开闭原则【OPEN CLOSE PRINCIPLE】: 一个软件实体如类、模块和函数应该对扩展开放，对修改关闭。
+- 组合/聚合复用原则【Composition/Aggregation Reuse Principle(CARP) 】: 尽量使用组合和聚合少使用继承的关系来达到复用的原则。
+
+## 24大设计模式
+
+### 创建型模式
+
+- 单例模式【Singleton Pattern】:确保一个类只有一个实例，并提供该实例的全局访问点
+
+
+#### 单例模式
+
+- 双重校验锁实现
+
+`volatile`关键字的作用是确保多个线程正确处理某个共享的变量，确保当 uniqueInstance 被初始化为新的 Singleton 实例时，所有线程能够立即看到这个变化。
+
+```java
+public class Singleton {
+
+    private volatile static Singleton uniqueInstance;
+
+    private Singleton() {
+    }
+
+    public static Singleton getUniqueInstance() {
+        if (uniqueInstance == null) {
+            synchronized (Singleton.class) {
+                if (uniqueInstance == null) {
+                    uniqueInstance = new Singleton();
+                }
+            }
+        }
+        return uniqueInstance;
+    }
+}
+```
+
+- 枚举类方式实现
+
+```java
+public enum Singleton {
+    uniqueInstance;
+}
+```
+
+枚举类方式实现方式是单例模式的最佳实现：
+  - 线程安全：枚举类在实例加载时初始化，因此线程安全。
+  - 防止反序列化时创建新的对象：枚举类默认继承了`java.io.Serializable`接口，因此枚举类在序列化和反序列化时不会创建新的对象。
+  - 防止反射攻击：枚举类的构造函数是私有的，因此无法通过反射调用构造函数创建新的对象。
+
+- 静态内部类实现
+
+```java
+public class Singleton {
+
+    private Singleton() {
+    }
+
+    private static class SingletonHolder {
+        private static final Singleton INSTANCE = new Singleton();
+    }
+
+    public static Singleton getUniqueInstance() {
+        return SingletonHolder.INSTANCE;
+    }
+}
+```
+
+- 延迟加载：只有在调用`getUniqueInstance`方法时才会加载`SingletonHolder`类，才会创建`Singleton`实例。但这种方式并不是完美的，如果一个类的实例化非常耗时，那么在首次调用`getUniqueInstance`方法时会有一定的延迟。
+- 线程安全：Java 中对类的初始化在多线程环境下是线程安全的。
+- 防止反序列化和反射攻击：由于`SingletonHolder`类没有外部引用，因此无法通过反序列化或者反射来创建新的实例，从而避免了反序列化和反射攻击。
+
+
+> 使用双重校验锁实现`public class Singleton`类是公有的，可以通过反射获取到该类的构造函数，将其设为`public`从而创建新的实例。具体如下：
+  
+  ```java
+  public static void main(String[] args) {
+        try {
+            // 获取 Singleton 类的构造函数对象
+            Constructor<Singleton> constructor = Singleton.class.getDeclaredConstructor();
+            
+            // 将构造函数设置为可访问
+            constructor.setAccessible(true);
+            
+            // 使用构造函数创建新的 Singleton 实例
+            Singleton instance = constructor.newInstance();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+  ```
+
+  而使用静态内部类实现，类`private static class SingletonHolder`是私有的，无法通过反射获取到该类的构造函数，因此无法通过反射创建新的实例。
+
