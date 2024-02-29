@@ -1,0 +1,80 @@
+---
+title: markdown feature template
+description: markdown feature template
+---
+
+文本可以是**粗体**，_斜体_，或~~删除线~~。
+
+你可以使用反引号高亮 `内联代码`。
+
+![](/article/md-template/default-og-image.png)
+
+:::note
+Starlight 是一个使用 [Astro](https://astro.build/) 构建的文档网站工具包。 你可以使用此命令开始：
+
+```sh
+npm create astro@latest -- --template starlight
+```
+
+:::
+
+:::tip[你知道吗？]
+Astro 帮助你使用 [“群岛架构”](https://docs.astro.build/zh-cn/concepts/islands/) 构建更快的网站。
+:::
+
+:::caution
+如果你不确定是否想要一个很棒的文档网站，请在使用 [Starlight](/zh-cn/) 之前三思。
+:::
+
+:::danger
+借助有用的 Starlight 功能，你的用户可能会提高工作效率，并发现你的产品更易于使用。
+
+-   清晰的导航
+-   用户可配置的颜色主题
+-   [i18n 支持](/zh-cn/guides/i18n)
+
+:::
+
+```js {2-3}
+function demo() {
+	// 这一行 (#2) 以及下一行被高亮显示
+	return '这是本代码段的第 3 行';
+}
+```
+
+```js "单个词组" /甚.*表达式/
+// 单个词组也能被高亮显示
+function demo() {
+	return '甚至支持使用正则表达式';
+}
+```
+
+```js "return true;" ins="插入" del="删除"
+function demo() {
+	console.log('这是插入以及删除类型的标记');
+	// 返回语句使用默认标记类型
+	return true;
+}
+```
+
+```diff lang="js"
+  function thisIsJavaScript() {
+    // 这整个代码块都会被作为 JavaScript 高亮
+    // 而且我们还可以给它添加 diff 标记！
+-   console.log('旧的不去')
++   console.log('新的不来')
+  }
+```
+
+```js
+// my-test-file.js
+console.log('Hello World!');
+```
+
+```bash title="安装依赖…"
+npm install
+```
+
+```bash frame="none"
+echo "这个代码块即使使用了 bash 语言也不会被显示成终端窗口"
+```
